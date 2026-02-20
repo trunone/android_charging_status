@@ -76,9 +76,14 @@ class MainActivity : AppCompatActivity() {
 
         // Current/Speed
         val batteryManager = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
-        val currentNow = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
-        // Usually in microamperes
-        val currentMa = currentNow / 1000
+        var currentMicroAmps = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
+
+        if (currentMicroAmps == 0 || currentMicroAmps == Int.MIN_VALUE) {
+             currentMicroAmps = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE)
+        }
+
+        // Usually in microamperes. Sometimes reported as negative for discharge.
+        val currentMa = currentMicroAmps / 1000
         textCurrent.text = "Current: $currentMa mA"
     }
 }
