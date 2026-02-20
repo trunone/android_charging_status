@@ -7,4 +7,6 @@
     <string name="temp">Temperature: %1$.1f °C</string>
     <string name="voltage">Voltage: %1$.2f V</string>
     <string name="current">Current: %1$d mA</string>
+    <string name="capacity">Capacity: %1$d mAh</string>
+    <string name="charge_counter">Charge Counter: %1$d mAh</string>
 </resources>

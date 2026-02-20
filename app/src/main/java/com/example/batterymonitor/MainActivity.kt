@@ -19,6 +19,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var textTemp: TextView
     private lateinit var textVoltage: TextView
     private lateinit var textCurrent: TextView
+    private lateinit var textCapacity: TextView
+
+    private var previousChargeTime: Long = 0
+    private var previousChargeCounter: Int = 0
 
     private val batteryReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -37,6 +41,7 @@ class MainActivity : AppCompatActivity() {
         textTemp = findViewById(R.id.text_temp)
         textVoltage = findViewById(R.id.text_voltage)
         textCurrent = findViewById(R.id.text_current)
+        textCapacity = findViewById(R.id.text_capacity)
     }
 
     override fun onResume() {
@@ -82,8 +87,38 @@ class MainActivity : AppCompatActivity() {
              currentMicroAmps = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE)
         }
 
+        // If still 0, try to estimate from capacity change
+        if (currentMicroAmps == 0 || currentMicroAmps == Int.MIN_VALUE) {
+             val currentChargeCounter = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER)
+             val currentTime = System.currentTimeMillis()
+
+             if (previousChargeTime > 0 && currentChargeCounter > 0 && currentTime > previousChargeTime) {
+                 val deltaCharge = currentChargeCounter - previousChargeCounter // microAmpere-hours
+                 val deltaTime = currentTime - previousChargeTime // milliseconds
+
+                 // Current (uA) = (Delta Charge (uAh) / Delta Time (h))
+                 val hours = deltaTime / 3600000.0
+                 currentMicroAmps = (deltaCharge / hours).toInt()
+             }
+
+             // Update reference points
+             if (previousChargeTime == 0L || currentTime - previousChargeTime > 10000) { // Update every 10 seconds or first run
+                 previousChargeTime = currentTime
+                 previousChargeCounter = currentChargeCounter
+             }
+        }
+
         // Usually in microamperes. Sometimes reported as negative for discharge.
         val currentMa = currentMicroAmps / 1000
         textCurrent.text = "Current: $currentMa mA"
+
+        // Capacity
+        val capacityMicroAh = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER)
+        val capacityMah = capacityMicroAh / 1000
+        if (capacityMah > 0) {
+             textCapacity.text = "Capacity: $capacityMah mAh"
+        } else {
+             textCapacity.text = "Capacity: Unknown"
+        }
     }
 }
