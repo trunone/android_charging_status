@@ -128,25 +128,25 @@ class MainActivity : AppCompatActivity() {
         val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
 
         val statusString = BatteryUtils.getStatusString(status)
-        textStatus.text = "Charging Status: $statusString"
+        textStatus.text = statusString
 
         val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
         val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
         val batteryPct = if (scale > 0) level * 100 / scale.toFloat() else 0f
-        textLevel.text = String.format(Locale.getDefault(), "Battery Level: %.0f%%", batteryPct)
+        textLevel.text = String.format(Locale.getDefault(), "%.0f%%", batteryPct)
 
         val chargePlug = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1)
         val sourceString = BatteryUtils.getPluggedString(chargePlug)
-        textSource.text = "Power Source: $sourceString"
+        textSource.text = sourceString
 
         val technology = intent.getStringExtra(BatteryManager.EXTRA_TECHNOLOGY)
-        textTech.text = "Technology: $technology"
+        textTech.text = technology
 
         val temperature = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) / 10.0
-        textTemp.text = String.format(Locale.getDefault(), "Temperature: %.1f °C", temperature)
+        textTemp.text = String.format(Locale.getDefault(), "%.1f °C", temperature)
 
         val voltage = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0) / 1000.0
-        textVoltage.text = String.format(Locale.getDefault(), "Voltage: %.2f V", voltage)
+        textVoltage.text = String.format(Locale.getDefault(), "%.2f V", voltage)
 
         // --- Current/Speed Estimation Logic ---
         val batteryManager = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
@@ -252,21 +252,22 @@ class MainActivity : AppCompatActivity() {
         }
 
         textCurrent.text = if (estimationMethod.isNotEmpty()) {
-            "Current: $estimatedCurrentMa mA ($estimationMethod)"
+            "$estimatedCurrentMa mA"
         } else {
-            "Current: 0 mA (Waiting...)"
+            "0 mA"
         }
 
         // Capacity
         val capacityMah = chargeCounter / 1000
         if (capacityMah > 0) {
-             textCapacity.text = "Capacity: $capacityMah mAh"
+             textCapacity.text = "$capacityMah mAh"
         } else {
-             textCapacity.text = "Capacity: Unknown"
+             textCapacity.text = "Unknown"
         }
 
         // Debug Info
         val debugInfo = StringBuilder()
+        debugInfo.append("Method: $estimationMethod\n")
         debugInfo.append("Raw Sensors:\n")
         debugInfo.append("Now: $currentNow (Raw)\n")
         debugInfo.append("Avg: $currentAvg (Raw)\n")
