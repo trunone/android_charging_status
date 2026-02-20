@@ -8,6 +8,9 @@ import android.os.BatteryManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.Menu
+import android.view.MenuItem
+import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import java.util.Locale
@@ -35,6 +38,10 @@ class MainActivity : AppCompatActivity() {
     // For Percentage based estimation
     private var previousPctTime: Long = 0
     private var previousPctLevel: Int = -1
+
+    private var isDebugVisible: Boolean = false
+    private val PREFS_NAME = "BatteryMonitorPrefs"
+    private val KEY_DEBUG_VISIBLE = "debug_visible"
 
     private val handler = Handler(Looper.getMainLooper())
     private val updateRunnable = object : Runnable {
@@ -66,6 +73,37 @@ class MainActivity : AppCompatActivity() {
         textCurrent = findViewById(R.id.text_current)
         textCapacity = findViewById(R.id.text_capacity)
         textDebug = findViewById(R.id.text_debug)
+
+        // Restore debug visibility preference
+        val settings = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        isDebugVisible = settings.getBoolean(KEY_DEBUG_VISIBLE, false)
+        updateDebugVisibility()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.main_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_toggle_debug -> {
+                isDebugVisible = !isDebugVisible
+                // Save preference
+                val settings = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val editor = settings.edit()
+                editor.putBoolean(KEY_DEBUG_VISIBLE, isDebugVisible)
+                editor.apply()
+
+                updateDebugVisibility()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    private fun updateDebugVisibility() {
+        textDebug.visibility = if (isDebugVisible) View.VISIBLE else View.GONE
     }
 
     override fun onResume() {
