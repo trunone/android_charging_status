@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Battery Monitor</string>
+    <string name="status">Charging Status: %1$s</string>
+    <string name="level">Battery Level: %1$d%%</string>
+    <string name="source">Power Source: %1$s</string>
+    <string name="tech">Technology: %1$s</string>
+    <string name="temp">Temperature: %1$.1f °C</string>
+    <string name="voltage">Voltage: %1$.2f V</string>
+    <string name="current">Current: %1$d mA</string>
+</resources>
