@@ -6,9 +6,12 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import java.util.Locale
+import kotlin.math.abs
 
 class MainActivity : AppCompatActivity() {
 
@@ -20,12 +23,32 @@ class MainActivity : AppCompatActivity() {
     private lateinit var textVoltage: TextView
     private lateinit var textCurrent: TextView
     private lateinit var textCapacity: TextView
+    private lateinit var textDebug: TextView
 
     private var previousChargeTime: Long = 0
     private var previousChargeCounter: Int = 0
 
+    // For Energy based estimation
+    private var previousEnergyTime: Long = 0
+    private var previousEnergyCounter: Long = 0L
+
+    // For Percentage based estimation
+    private var previousPctTime: Long = 0
+    private var previousPctLevel: Int = -1
+
+    private val handler = Handler(Looper.getMainLooper())
+    private val updateRunnable = object : Runnable {
+        override fun run() {
+            updateLiveValues()
+            handler.postDelayed(this, 1000) // Update every 1 second
+        }
+    }
+
+    private var lastIntent: Intent? = null
+
     private val batteryReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
+            lastIntent = intent
             updateBatteryInfo(intent)
         }
     }
@@ -42,17 +65,25 @@ class MainActivity : AppCompatActivity() {
         textVoltage = findViewById(R.id.text_voltage)
         textCurrent = findViewById(R.id.text_current)
         textCapacity = findViewById(R.id.text_capacity)
+        textDebug = findViewById(R.id.text_debug)
     }
 
     override fun onResume() {
         super.onResume()
         val intentFilter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
         registerReceiver(batteryReceiver, intentFilter)
+        handler.post(updateRunnable)
     }
 
     override fun onPause() {
         super.onPause()
         unregisterReceiver(batteryReceiver)
+        handler.removeCallbacks(updateRunnable)
+    }
+
+    private fun updateLiveValues() {
+        val intent = lastIntent ?: return
+        updateBatteryInfo(intent)
     }
 
     private fun updateBatteryInfo(intent: Intent) {
@@ -79,46 +110,120 @@ class MainActivity : AppCompatActivity() {
         val voltage = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0) / 1000.0
         textVoltage.text = String.format(Locale.getDefault(), "Voltage: %.2f V", voltage)
 
-        // Current/Speed
+        // --- Current/Speed Estimation Logic ---
         val batteryManager = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
-        var currentMicroAmps = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
+        val currentTime = System.currentTimeMillis()
 
-        if (currentMicroAmps == 0 || currentMicroAmps == Int.MIN_VALUE) {
-             currentMicroAmps = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE)
+        // 1. Direct Properties
+        val currentNow = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
+        val currentAvg = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE)
+        val chargeCounter = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER)
+        val energyCounter = batteryManager.getLongProperty(BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER)
+
+        var estimatedCurrentMa = 0
+        var estimationMethod = ""
+
+        // Try 1: Current Now
+        if (currentNow != 0 && currentNow != Int.MIN_VALUE) {
+            estimatedCurrentMa = currentNow / 1000
+            estimationMethod = "Sensor (Now)"
+        }
+        // Try 2: Current Average
+        else if (currentAvg != 0 && currentAvg != Int.MIN_VALUE) {
+            estimatedCurrentMa = currentAvg / 1000
+            estimationMethod = "Sensor (Avg)"
         }
 
-        // If still 0, try to estimate from capacity change
-        if (currentMicroAmps == 0 || currentMicroAmps == Int.MIN_VALUE) {
-             val currentChargeCounter = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER)
-             val currentTime = System.currentTimeMillis()
-
-             if (previousChargeTime > 0 && currentChargeCounter > 0 && currentTime > previousChargeTime) {
-                 val deltaCharge = currentChargeCounter - previousChargeCounter // microAmpere-hours
+        // Try 3: Change in Charge Counter (Ah)
+        if (estimatedCurrentMa == 0) {
+             if (previousChargeTime > 0 && chargeCounter > 0 && currentTime > previousChargeTime) {
+                 val deltaCharge = chargeCounter - previousChargeCounter // microAmpere-hours
                  val deltaTime = currentTime - previousChargeTime // milliseconds
-
-                 // Current (uA) = (Delta Charge (uAh) / Delta Time (h))
                  val hours = deltaTime / 3600000.0
-                 currentMicroAmps = (deltaCharge / hours).toInt()
+
+                 // If the change is significant enough to calculate speed
+                 if (hours > 0 && abs(deltaCharge) > 0) {
+                     val calculatedUa = deltaCharge / hours
+                     estimatedCurrentMa = (calculatedUa / 1000).toInt()
+                     estimationMethod = "Est. (Charge)"
+                 }
              }
 
-             // Update reference points
-             if (previousChargeTime == 0L || currentTime - previousChargeTime > 10000) { // Update every 10 seconds or first run
+             if (previousChargeTime == 0L || currentTime - previousChargeTime > 5000) { // Update reference every 5s
                  previousChargeTime = currentTime
-                 previousChargeCounter = currentChargeCounter
+                 previousChargeCounter = chargeCounter
              }
         }
 
-        // Usually in microamperes. Sometimes reported as negative for discharge.
-        val currentMa = currentMicroAmps / 1000
-        textCurrent.text = "Current: $currentMa mA"
+        // Try 4: Change in Energy Counter (Wh) -> Power / Voltage
+        if (estimatedCurrentMa == 0) {
+             if (previousEnergyTime > 0 && energyCounter > 0 && currentTime > previousEnergyTime) {
+                 val deltaEnergy = energyCounter - previousEnergyCounter // nanowatt-hours
+                 val deltaTime = currentTime - previousEnergyTime
+                 val hours = deltaTime / 3600000.0
+
+                 if (hours > 0 && abs(deltaEnergy) > 0 && voltage > 0) {
+                     val powerNw = deltaEnergy / hours // nanowatts
+                     val powerMw = powerNw / 1_000_000 // milliwatts
+                     // P = V * I  => I = P / V
+                     // I(mA) = P(mW) / V(V)
+                     estimatedCurrentMa = (powerMw / voltage).toInt()
+                     estimationMethod = "Est. (Energy)"
+                 }
+             }
+
+             if (previousEnergyTime == 0L || currentTime - previousEnergyTime > 5000) {
+                 previousEnergyTime = currentTime
+                 previousEnergyCounter = energyCounter
+             }
+        }
+
+        // Try 5: Change in Percentage (Current = Capacity * d%/dt)
+        if (estimatedCurrentMa == 0) {
+            // Use 4000 mAh as assumed capacity
+            val assumedCapacity = 4000
+            val currentPct = if (scale > 0) level * 100 / scale else 0
+
+            if (previousPctTime > 0 && previousPctLevel != -1 && currentPct != previousPctLevel && currentTime > previousPctTime) {
+                 val deltaPct = currentPct - previousPctLevel
+                 val deltaTime = currentTime - previousPctTime
+                 val hours = deltaTime / 3600000.0 // Convert ms to hours
+
+                 val deltaCapacity = (deltaPct / 100.0) * assumedCapacity // mAh
+
+                 estimatedCurrentMa = (deltaCapacity / hours).toInt()
+                 estimationMethod = "Est. (Percent)"
+            }
+
+            // Only update reference if percentage changes (or first run)
+            if (previousPctLevel == -1 || currentPct != previousPctLevel) {
+                previousPctTime = currentTime
+                previousPctLevel = currentPct
+            }
+        }
+
+        textCurrent.text = if (estimationMethod.isNotEmpty()) {
+            "Current: $estimatedCurrentMa mA ($estimationMethod)"
+        } else {
+            "Current: 0 mA (Waiting...)"
+        }
 
         // Capacity
-        val capacityMicroAh = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER)
-        val capacityMah = capacityMicroAh / 1000
+        val capacityMah = chargeCounter / 1000
         if (capacityMah > 0) {
              textCapacity.text = "Capacity: $capacityMah mAh"
         } else {
              textCapacity.text = "Capacity: Unknown"
         }
+
+        // Debug Info
+        val debugInfo = StringBuilder()
+        debugInfo.append("Raw Sensors:\n")
+        debugInfo.append("Now: $currentNow uA\n")
+        debugInfo.append("Avg: $currentAvg uA\n")
+        debugInfo.append("Cntr: $chargeCounter uAh\n")
+        debugInfo.append("Engy: $energyCounter nWh\n")
+        debugInfo.append("Lvl: $level / $scale")
+        textDebug.text = debugInfo.toString()
     }
 }
