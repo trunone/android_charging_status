@@ -125,13 +125,24 @@ class MainActivity : AppCompatActivity() {
 
         // Try 1: Current Now
         if (currentNow != 0 && currentNow != Int.MIN_VALUE) {
-            estimatedCurrentMa = currentNow / 1000
-            estimationMethod = "Sensor (Now)"
+            // Heuristic: If value is small (< 10000), assume it's already in mA
+            if (abs(currentNow) < 10000) {
+                estimatedCurrentMa = currentNow
+                estimationMethod = "Sensor (Now, mA)"
+            } else {
+                estimatedCurrentMa = currentNow / 1000
+                estimationMethod = "Sensor (Now, uA)"
+            }
         }
         // Try 2: Current Average
         else if (currentAvg != 0 && currentAvg != Int.MIN_VALUE) {
-            estimatedCurrentMa = currentAvg / 1000
-            estimationMethod = "Sensor (Avg)"
+            if (abs(currentAvg) < 10000) {
+                estimatedCurrentMa = currentAvg
+                estimationMethod = "Sensor (Avg, mA)"
+            } else {
+                estimatedCurrentMa = currentAvg / 1000
+                estimationMethod = "Sensor (Avg, uA)"
+            }
         }
 
         // Try 3: Change in Charge Counter (Ah)
@@ -219,8 +230,8 @@ class MainActivity : AppCompatActivity() {
         // Debug Info
         val debugInfo = StringBuilder()
         debugInfo.append("Raw Sensors:\n")
-        debugInfo.append("Now: $currentNow uA\n")
-        debugInfo.append("Avg: $currentAvg uA\n")
+        debugInfo.append("Now: $currentNow (Raw)\n")
+        debugInfo.append("Avg: $currentAvg (Raw)\n")
         debugInfo.append("Cntr: $chargeCounter uAh\n")
         debugInfo.append("Engy: $energyCounter nWh\n")
         debugInfo.append("Lvl: $level / $scale")
