@@ -33,9 +33,12 @@
 
             <!-- Primary Metric: Current / Charging Speed -->
             <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_main_metric"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
+                android:clickable="true"
+                android:focusable="true"
                 app:cardBackgroundColor="?attr/colorPrimaryContainer">
 
                 <LinearLayout
@@ -46,6 +49,7 @@
                     android:gravity="center">
 
                     <TextView
+                        android:id="@+id/label_main_metric"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Charging Current"

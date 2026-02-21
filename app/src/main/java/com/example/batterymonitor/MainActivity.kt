@@ -27,6 +27,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var textCurrent: TextView
     private lateinit var textCapacity: TextView
     private lateinit var textDebug: TextView
+    private lateinit var cardMainMetric: View
+    private lateinit var labelMainMetric: TextView
 
     private var previousChargeTime: Long = 0
     private var previousChargeCounter: Int = 0
@@ -40,8 +42,10 @@ class MainActivity : AppCompatActivity() {
     private var previousPctLevel: Int = -1
 
     private var isDebugVisible: Boolean = false
+    private var isPowerMode: Boolean = false
     private val PREFS_NAME = "BatteryMonitorPrefs"
     private val KEY_DEBUG_VISIBLE = "debug_visible"
+    private val KEY_POWER_MODE = "power_mode"
 
     private val handler = Handler(Looper.getMainLooper())
     private val updateRunnable = object : Runnable {
@@ -73,11 +77,31 @@ class MainActivity : AppCompatActivity() {
         textCurrent = findViewById(R.id.text_current)
         textCapacity = findViewById(R.id.text_capacity)
         textDebug = findViewById(R.id.text_debug)
+        cardMainMetric = findViewById(R.id.card_main_metric)
+        labelMainMetric = findViewById(R.id.label_main_metric)
 
-        // Restore debug visibility preference
+        // Restore preferences
         val settings = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         isDebugVisible = settings.getBoolean(KEY_DEBUG_VISIBLE, false)
+        isPowerMode = settings.getBoolean(KEY_POWER_MODE, false)
+
         updateDebugVisibility()
+        updateMainMetricLabel()
+
+        cardMainMetric.setOnClickListener {
+            isPowerMode = !isPowerMode
+            // Save preference
+            val editor = settings.edit()
+            editor.putBoolean(KEY_POWER_MODE, isPowerMode)
+            editor.apply()
+
+            updateMainMetricLabel()
+            updateLiveValues()
+        }
+    }
+
+    private fun updateMainMetricLabel() {
+        labelMainMetric.text = if (isPowerMode) "Charging Power" else "Charging Current"
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -251,10 +275,19 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        textCurrent.text = if (estimationMethod.isNotEmpty()) {
-            "$estimatedCurrentMa mA"
+        if (isPowerMode) {
+            // Power (W) = Current (A) * Voltage (V)
+            // estimatedCurrentMa is in mA, voltage is in V.
+            // Power (mW) = mA * V
+            // Power (W) = (mA * V) / 1000
+            val powerWatts = (estimatedCurrentMa * voltage) / 1000.0
+            textCurrent.text = String.format(Locale.getDefault(), "%.2f W", powerWatts)
         } else {
-            "0 mA"
+            textCurrent.text = if (estimationMethod.isNotEmpty()) {
+                "$estimatedCurrentMa mA"
+            } else {
+                "0 mA"
+            }
         }
 
         // Capacity
