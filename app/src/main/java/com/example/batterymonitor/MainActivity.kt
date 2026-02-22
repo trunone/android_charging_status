@@ -78,6 +78,9 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.topAppBar)
+        setSupportActionBar(toolbar)
+
         textStatus = findViewById(R.id.text_status)
         textLevel = findViewById(R.id.text_level)
         textSource = findViewById(R.id.text_source)
@@ -224,9 +227,7 @@ class MainActivity : AppCompatActivity() {
                 if (result == null) result = estimateCurrentFromChargeCounter(chargeCounter, currentTime)
                 if (result == null) result = estimateCurrentFromEnergyCounter(energyCounter, currentTime, voltage)
                 if (result == null) {
-                    val levelL = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-                    val scaleL = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-                    result = estimateCurrentFromPercentage(levelL, scaleL, currentTime)
+                    result = estimateCurrentFromPercentage(level, scale, currentTime)
                 }
             }
             MODE_CURRENT_NOW -> result = estimateCurrentFromNow(currentNow)
@@ -234,9 +235,7 @@ class MainActivity : AppCompatActivity() {
             MODE_CHARGE_COUNTER -> result = estimateCurrentFromChargeCounter(chargeCounter, currentTime)
             MODE_ENERGY_COUNTER -> result = estimateCurrentFromEnergyCounter(energyCounter, currentTime, voltage)
             MODE_PERCENTAGE -> {
-                val levelL = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-                val scaleL = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-                result = estimateCurrentFromPercentage(levelL, scaleL, currentTime)
+                result = estimateCurrentFromPercentage(level, scale, currentTime)
             }
         }
 
