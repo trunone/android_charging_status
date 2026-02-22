@@ -34,10 +34,12 @@ class MainActivity : AppCompatActivity() {
 
     private var isDebugVisible: Boolean = false
     private var isPowerMode: Boolean = false
+    private var isDataSourceNow: Boolean = true // Default to Now
     private val PREFS_NAME = "BatteryMonitorPrefs"
     private val KEY_DEBUG_VISIBLE = "debug_visible"
     private val KEY_POWER_MODE = "power_mode"
     private val KEY_THEME = "theme_preference"
+    private val KEY_DATA_SOURCE = "data_source"
 
     private val handler = Handler(Looper.getMainLooper())
     private val updateRunnable = object : Runnable {
@@ -79,6 +81,7 @@ class MainActivity : AppCompatActivity() {
         val settings = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         isDebugVisible = settings.getBoolean(KEY_DEBUG_VISIBLE, false)
         isPowerMode = settings.getBoolean(KEY_POWER_MODE, false)
+        isDataSourceNow = settings.getBoolean(KEY_DATA_SOURCE, true)
 
         // Restore Theme
         val themePref = settings.getInt(KEY_THEME, AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
@@ -125,8 +128,37 @@ class MainActivity : AppCompatActivity() {
                 showThemeSelectionDialog()
                 true
             }
+            R.id.action_data_source -> {
+                showDataSourceSelectionDialog()
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
+    }
+
+    private fun showDataSourceSelectionDialog() {
+        val options = arrayOf(
+            getString(R.string.data_source_now),
+            getString(R.string.data_source_avg)
+        )
+        // If isDataSourceNow is true, index is 0. Else index is 1.
+        val checkedItem = if (isDataSourceNow) 0 else 1
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.data_source_title)
+            .setSingleChoiceItems(options, checkedItem) { dialog, which ->
+                isDataSourceNow = (which == 0)
+
+                val settings = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val editor = settings.edit()
+                editor.putBoolean(KEY_DATA_SOURCE, isDataSourceNow)
+                editor.apply()
+
+                updateLiveValues()
+                dialog.dismiss()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun showThemeSelectionDialog() {
@@ -222,8 +254,11 @@ class MainActivity : AppCompatActivity() {
         var estimatedCurrentMa = 0
         var estimationMethod = ""
 
-        // Only use Sensor (Now)
-        val result = estimateCurrentFromNow(currentNow)
+        // Choose source based on preference
+        val rawValue = if (isDataSourceNow) currentNow else currentAvg
+        val label = if (isDataSourceNow) "Now" else "Avg"
+
+        val result = estimateCurrent(rawValue, label)
 
         if (result != null) {
             estimatedCurrentMa = result.first
@@ -265,13 +300,13 @@ class MainActivity : AppCompatActivity() {
         textDebug.text = debugInfo.toString()
     }
 
-    private fun estimateCurrentFromNow(currentNow: Int): Pair<Int, String>? {
-        if (currentNow != 0 && currentNow != Int.MIN_VALUE) {
+    private fun estimateCurrent(rawValue: Int, sourceLabel: String): Pair<Int, String>? {
+        if (rawValue != 0 && rawValue != Int.MIN_VALUE) {
             // Heuristic: If value is small (< 10000), assume it's already in mA
-            if (abs(currentNow) < 10000) {
-                return Pair(currentNow, "Sensor (Now, mA)")
+            if (abs(rawValue) < 10000) {
+                return Pair(rawValue, "Sensor ($sourceLabel, mA)")
             } else {
-                return Pair(currentNow / 1000, "Sensor (Now, uA)")
+                return Pair(rawValue / 1000, "Sensor ($sourceLabel, uA)")
             }
         }
         return null

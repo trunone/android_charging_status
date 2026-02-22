@@ -8,4 +8,8 @@
         android:id="@+id/action_theme"
         android:title="@string/action_theme"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/action_data_source"
+        android:title="@string/action_data_source"
+        app:showAsAction="never" />
 </menu>

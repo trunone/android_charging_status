@@ -16,4 +16,10 @@
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
     <string name="theme_system">System Default</string>
+
+    <!-- Data Source Strings -->
+    <string name="action_data_source">Data Source</string>
+    <string name="data_source_title">Select Data Source</string>
+    <string name="data_source_now">Instantaneous (Now)</string>
+    <string name="data_source_avg">Average</string>
 </resources>
