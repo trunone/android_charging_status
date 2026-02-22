@@ -4,4 +4,8 @@
         android:id="@+id/action_toggle_debug"
         android:title="Toggle Debug Info"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/action_set_estimation_method"
+        android:title="Estimation Method"
+        app:showAsAction="never" />
 </menu>
