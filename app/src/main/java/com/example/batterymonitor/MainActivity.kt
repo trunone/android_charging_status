@@ -12,7 +12,9 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import java.util.Locale
 import kotlin.math.abs
 
@@ -35,6 +37,7 @@ class MainActivity : AppCompatActivity() {
     private val PREFS_NAME = "BatteryMonitorPrefs"
     private val KEY_DEBUG_VISIBLE = "debug_visible"
     private val KEY_POWER_MODE = "power_mode"
+    private val KEY_THEME = "theme_preference"
 
     private val handler = Handler(Looper.getMainLooper())
     private val updateRunnable = object : Runnable {
@@ -77,6 +80,10 @@ class MainActivity : AppCompatActivity() {
         isDebugVisible = settings.getBoolean(KEY_DEBUG_VISIBLE, false)
         isPowerMode = settings.getBoolean(KEY_POWER_MODE, false)
 
+        // Restore Theme
+        val themePref = settings.getInt(KEY_THEME, AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+        AppCompatDelegate.setDefaultNightMode(themePref)
+
         updateDebugVisibility()
         updateMainMetricLabel()
 
@@ -114,8 +121,47 @@ class MainActivity : AppCompatActivity() {
                 updateDebugVisibility()
                 true
             }
+            R.id.action_theme -> {
+                showThemeSelectionDialog()
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
+    }
+
+    private fun showThemeSelectionDialog() {
+        val themes = arrayOf(
+            getString(R.string.theme_light),
+            getString(R.string.theme_dark),
+            getString(R.string.theme_system)
+        )
+        val themeValues = arrayOf(
+            AppCompatDelegate.MODE_NIGHT_NO,
+            AppCompatDelegate.MODE_NIGHT_YES,
+            AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+        )
+
+        val settings = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val currentTheme = settings.getInt(KEY_THEME, AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+
+        val checkedItem = themeValues.indexOf(currentTheme)
+        // Default to System if not found
+        val actualCheckedItem = if (checkedItem >= 0) checkedItem else 2
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.theme_title)
+            .setSingleChoiceItems(themes, actualCheckedItem) { dialog, which ->
+                val selectedTheme = themeValues[which]
+
+                val editor = settings.edit()
+                editor.putInt(KEY_THEME, selectedTheme)
+                editor.apply()
+
+                AppCompatDelegate.setDefaultNightMode(selectedTheme)
+                dialog.dismiss()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun updateDebugVisibility() {
