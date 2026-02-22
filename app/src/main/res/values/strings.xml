@@ -9,4 +9,17 @@
     <string name="current">Current: %1$d mA</string>
     <string name="capacity">Capacity: %1$d mAh</string>
     <string name="charge_counter">Charge Counter: %1$d mAh</string>
+
+    <!-- Theme Strings -->
+    <string name="action_theme">Theme</string>
+    <string name="theme_title">Select Theme</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_system">System Default</string>
+
+    <!-- Data Source Strings -->
+    <string name="action_data_source">Data Source</string>
+    <string name="data_source_title">Select Data Source</string>
+    <string name="data_source_now">Instantaneous (Now)</string>
+    <string name="data_source_avg">Average</string>
 </resources>

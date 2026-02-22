@@ -12,7 +12,9 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import java.util.Locale
 import kotlin.math.abs
 
@@ -30,22 +32,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cardMainMetric: View
     private lateinit var labelMainMetric: TextView
 
-    private var previousChargeTime: Long = 0
-    private var previousChargeCounter: Int = 0
-
-    // For Energy based estimation
-    private var previousEnergyTime: Long = 0
-    private var previousEnergyCounter: Long = 0L
-
-    // For Percentage based estimation
-    private var previousPctTime: Long = 0
-    private var previousPctLevel: Int = -1
-
     private var isDebugVisible: Boolean = false
     private var isPowerMode: Boolean = false
+    private var isDataSourceNow: Boolean = true // Default to Now
     private val PREFS_NAME = "BatteryMonitorPrefs"
     private val KEY_DEBUG_VISIBLE = "debug_visible"
     private val KEY_POWER_MODE = "power_mode"
+    private val KEY_THEME = "theme_preference"
+    private val KEY_DATA_SOURCE = "data_source"
 
     private val handler = Handler(Looper.getMainLooper())
     private val updateRunnable = object : Runnable {
@@ -68,6 +62,9 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.topAppBar)
+        setSupportActionBar(toolbar)
+
         textStatus = findViewById(R.id.text_status)
         textLevel = findViewById(R.id.text_level)
         textSource = findViewById(R.id.text_source)
@@ -84,6 +81,11 @@ class MainActivity : AppCompatActivity() {
         val settings = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         isDebugVisible = settings.getBoolean(KEY_DEBUG_VISIBLE, false)
         isPowerMode = settings.getBoolean(KEY_POWER_MODE, false)
+        isDataSourceNow = settings.getBoolean(KEY_DATA_SOURCE, true)
+
+        // Restore Theme
+        val themePref = settings.getInt(KEY_THEME, AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+        AppCompatDelegate.setDefaultNightMode(themePref)
 
         updateDebugVisibility()
         updateMainMetricLabel()
@@ -122,8 +124,76 @@ class MainActivity : AppCompatActivity() {
                 updateDebugVisibility()
                 true
             }
+            R.id.action_theme -> {
+                showThemeSelectionDialog()
+                true
+            }
+            R.id.action_data_source -> {
+                showDataSourceSelectionDialog()
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
+    }
+
+    private fun showDataSourceSelectionDialog() {
+        val options = arrayOf(
+            getString(R.string.data_source_now),
+            getString(R.string.data_source_avg)
+        )
+        // If isDataSourceNow is true, index is 0. Else index is 1.
+        val checkedItem = if (isDataSourceNow) 0 else 1
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.data_source_title)
+            .setSingleChoiceItems(options, checkedItem) { dialog, which ->
+                isDataSourceNow = (which == 0)
+
+                val settings = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val editor = settings.edit()
+                editor.putBoolean(KEY_DATA_SOURCE, isDataSourceNow)
+                editor.apply()
+
+                updateLiveValues()
+                dialog.dismiss()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showThemeSelectionDialog() {
+        val themes = arrayOf(
+            getString(R.string.theme_light),
+            getString(R.string.theme_dark),
+            getString(R.string.theme_system)
+        )
+        val themeValues = arrayOf(
+            AppCompatDelegate.MODE_NIGHT_NO,
+            AppCompatDelegate.MODE_NIGHT_YES,
+            AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+        )
+
+        val settings = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val currentTheme = settings.getInt(KEY_THEME, AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+
+        val checkedItem = themeValues.indexOf(currentTheme)
+        // Default to System if not found
+        val actualCheckedItem = if (checkedItem >= 0) checkedItem else 2
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.theme_title)
+            .setSingleChoiceItems(themes, actualCheckedItem) { dialog, which ->
+                val selectedTheme = themeValues[which]
+
+                val editor = settings.edit()
+                editor.putInt(KEY_THEME, selectedTheme)
+                editor.apply()
+
+                AppCompatDelegate.setDefaultNightMode(selectedTheme)
+                dialog.dismiss()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun updateDebugVisibility() {
@@ -174,7 +244,6 @@ class MainActivity : AppCompatActivity() {
 
         // --- Current/Speed Estimation Logic ---
         val batteryManager = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
-        val currentTime = System.currentTimeMillis()
 
         // 1. Direct Properties
         val currentNow = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
@@ -185,94 +254,15 @@ class MainActivity : AppCompatActivity() {
         var estimatedCurrentMa = 0
         var estimationMethod = ""
 
-        // Try 1: Current Now
-        if (currentNow != 0 && currentNow != Int.MIN_VALUE) {
-            // Heuristic: If value is small (< 10000), assume it's already in mA
-            if (abs(currentNow) < 10000) {
-                estimatedCurrentMa = currentNow
-                estimationMethod = "Sensor (Now, mA)"
-            } else {
-                estimatedCurrentMa = currentNow / 1000
-                estimationMethod = "Sensor (Now, uA)"
-            }
-        }
-        // Try 2: Current Average
-        else if (currentAvg != 0 && currentAvg != Int.MIN_VALUE) {
-            if (abs(currentAvg) < 10000) {
-                estimatedCurrentMa = currentAvg
-                estimationMethod = "Sensor (Avg, mA)"
-            } else {
-                estimatedCurrentMa = currentAvg / 1000
-                estimationMethod = "Sensor (Avg, uA)"
-            }
-        }
+        // Choose source based on preference
+        val rawValue = if (isDataSourceNow) currentNow else currentAvg
+        val label = if (isDataSourceNow) "Now" else "Avg"
 
-        // Try 3: Change in Charge Counter (Ah)
-        if (estimatedCurrentMa == 0) {
-             if (previousChargeTime > 0 && chargeCounter > 0 && currentTime > previousChargeTime) {
-                 val deltaCharge = chargeCounter - previousChargeCounter // microAmpere-hours
-                 val deltaTime = currentTime - previousChargeTime // milliseconds
-                 val hours = deltaTime / 3600000.0
+        val result = estimateCurrent(rawValue, label)
 
-                 // If the change is significant enough to calculate speed
-                 if (hours > 0 && abs(deltaCharge) > 0) {
-                     val calculatedUa = deltaCharge / hours
-                     estimatedCurrentMa = (calculatedUa / 1000).toInt()
-                     estimationMethod = "Est. (Charge)"
-                 }
-             }
-
-             if (previousChargeTime == 0L || currentTime - previousChargeTime > 5000) { // Update reference every 5s
-                 previousChargeTime = currentTime
-                 previousChargeCounter = chargeCounter
-             }
-        }
-
-        // Try 4: Change in Energy Counter (Wh) -> Power / Voltage
-        if (estimatedCurrentMa == 0) {
-             if (previousEnergyTime > 0 && energyCounter > 0 && currentTime > previousEnergyTime) {
-                 val deltaEnergy = energyCounter - previousEnergyCounter // nanowatt-hours
-                 val deltaTime = currentTime - previousEnergyTime
-                 val hours = deltaTime / 3600000.0
-
-                 if (hours > 0 && abs(deltaEnergy) > 0 && voltage > 0) {
-                     val powerNw = deltaEnergy / hours // nanowatts
-                     val powerMw = powerNw / 1_000_000 // milliwatts
-                     // P = V * I  => I = P / V
-                     // I(mA) = P(mW) / V(V)
-                     estimatedCurrentMa = (powerMw / voltage).toInt()
-                     estimationMethod = "Est. (Energy)"
-                 }
-             }
-
-             if (previousEnergyTime == 0L || currentTime - previousEnergyTime > 5000) {
-                 previousEnergyTime = currentTime
-                 previousEnergyCounter = energyCounter
-             }
-        }
-
-        // Try 5: Change in Percentage (Current = Capacity * d%/dt)
-        if (estimatedCurrentMa == 0) {
-            // Use 4000 mAh as assumed capacity
-            val assumedCapacity = 4000
-            val currentPct = if (scale > 0) level * 100 / scale else 0
-
-            if (previousPctTime > 0 && previousPctLevel != -1 && currentPct != previousPctLevel && currentTime > previousPctTime) {
-                 val deltaPct = currentPct - previousPctLevel
-                 val deltaTime = currentTime - previousPctTime
-                 val hours = deltaTime / 3600000.0 // Convert ms to hours
-
-                 val deltaCapacity = (deltaPct / 100.0) * assumedCapacity // mAh
-
-                 estimatedCurrentMa = (deltaCapacity / hours).toInt()
-                 estimationMethod = "Est. (Percent)"
-            }
-
-            // Only update reference if percentage changes (or first run)
-            if (previousPctLevel == -1 || currentPct != previousPctLevel) {
-                previousPctTime = currentTime
-                previousPctLevel = currentPct
-            }
+        if (result != null) {
+            estimatedCurrentMa = result.first
+            estimationMethod = result.second
         }
 
         if (isPowerMode) {
@@ -308,5 +298,17 @@ class MainActivity : AppCompatActivity() {
         debugInfo.append("Engy: $energyCounter nWh\n")
         debugInfo.append("Lvl: $level / $scale")
         textDebug.text = debugInfo.toString()
+    }
+
+    private fun estimateCurrent(rawValue: Int, sourceLabel: String): Pair<Int, String>? {
+        if (rawValue != 0 && rawValue != Int.MIN_VALUE) {
+            // Heuristic: If value is small (< 10000), assume it's already in mA
+            if (abs(rawValue) < 10000) {
+                return Pair(rawValue, "Sensor ($sourceLabel, mA)")
+            } else {
+                return Pair(rawValue / 1000, "Sensor ($sourceLabel, uA)")
+            }
+        }
+        return null
     }
 }
