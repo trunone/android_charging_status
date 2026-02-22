@@ -30,32 +30,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cardMainMetric: View
     private lateinit var labelMainMetric: TextView
 
-    private var previousChargeTime: Long = 0
-    private var previousChargeCounter: Int = 0
-
-    // For Energy based estimation
-    private var previousEnergyTime: Long = 0
-    private var previousEnergyCounter: Long = 0L
-
-    // For Percentage based estimation
-    private var previousPctTime: Long = 0
-    private var previousPctLevel: Int = -1
-
     private var isDebugVisible: Boolean = false
     private var isPowerMode: Boolean = false
     private val PREFS_NAME = "BatteryMonitorPrefs"
     private val KEY_DEBUG_VISIBLE = "debug_visible"
     private val KEY_POWER_MODE = "power_mode"
-    private val KEY_ESTIMATION_METHOD = "estimation_method"
-
-    private val MODE_AUTOMATIC = 0
-    private val MODE_CURRENT_NOW = 1
-    private val MODE_CURRENT_AVG = 2
-    private val MODE_CHARGE_COUNTER = 3
-    private val MODE_ENERGY_COUNTER = 4
-    private val MODE_PERCENTAGE = 5
-
-    private var estimationMode = MODE_AUTOMATIC
 
     private val handler = Handler(Looper.getMainLooper())
     private val updateRunnable = object : Runnable {
@@ -97,7 +76,6 @@ class MainActivity : AppCompatActivity() {
         val settings = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         isDebugVisible = settings.getBoolean(KEY_DEBUG_VISIBLE, false)
         isPowerMode = settings.getBoolean(KEY_POWER_MODE, false)
-        estimationMode = settings.getInt(KEY_ESTIMATION_METHOD, MODE_AUTOMATIC)
 
         updateDebugVisibility()
         updateMainMetricLabel()
@@ -136,28 +114,8 @@ class MainActivity : AppCompatActivity() {
                 updateDebugVisibility()
                 true
             }
-            R.id.action_set_estimation_method -> {
-                showEstimationMethodDialog()
-                true
-            }
             else -> super.onOptionsItemSelected(item)
         }
-    }
-
-    private fun showEstimationMethodDialog() {
-        val methods = arrayOf("Automatic", "Sensor (Now)", "Sensor (Avg)", "Charge Counter", "Energy Counter", "Percentage")
-        val builder = androidx.appcompat.app.AlertDialog.Builder(this)
-        builder.setTitle("Select Estimation Method")
-        builder.setSingleChoiceItems(methods, estimationMode) { dialog, which ->
-            estimationMode = which
-            val settings = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            val editor = settings.edit()
-            editor.putInt(KEY_ESTIMATION_METHOD, estimationMode)
-            editor.apply()
-            updateLiveValues()
-            dialog.dismiss()
-        }
-        builder.show()
     }
 
     private fun updateDebugVisibility() {
@@ -208,7 +166,6 @@ class MainActivity : AppCompatActivity() {
 
         // --- Current/Speed Estimation Logic ---
         val batteryManager = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
-        val currentTime = System.currentTimeMillis()
 
         // 1. Direct Properties
         val currentNow = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
@@ -218,26 +175,9 @@ class MainActivity : AppCompatActivity() {
 
         var estimatedCurrentMa = 0
         var estimationMethod = ""
-        var result: Pair<Int, String>? = null
 
-        when (estimationMode) {
-            MODE_AUTOMATIC -> {
-                result = estimateCurrentFromNow(currentNow)
-                if (result == null) result = estimateCurrentFromAvg(currentAvg)
-                if (result == null) result = estimateCurrentFromChargeCounter(chargeCounter, currentTime)
-                if (result == null) result = estimateCurrentFromEnergyCounter(energyCounter, currentTime, voltage)
-                if (result == null) {
-                    result = estimateCurrentFromPercentage(level, scale, currentTime)
-                }
-            }
-            MODE_CURRENT_NOW -> result = estimateCurrentFromNow(currentNow)
-            MODE_CURRENT_AVG -> result = estimateCurrentFromAvg(currentAvg)
-            MODE_CHARGE_COUNTER -> result = estimateCurrentFromChargeCounter(chargeCounter, currentTime)
-            MODE_ENERGY_COUNTER -> result = estimateCurrentFromEnergyCounter(energyCounter, currentTime, voltage)
-            MODE_PERCENTAGE -> {
-                result = estimateCurrentFromPercentage(level, scale, currentTime)
-            }
-        }
+        // Only use Sensor (Now)
+        val result = estimateCurrentFromNow(currentNow)
 
         if (result != null) {
             estimatedCurrentMa = result.first
@@ -289,86 +229,5 @@ class MainActivity : AppCompatActivity() {
             }
         }
         return null
-    }
-
-    private fun estimateCurrentFromAvg(currentAvg: Int): Pair<Int, String>? {
-        if (currentAvg != 0 && currentAvg != Int.MIN_VALUE) {
-            if (abs(currentAvg) < 10000) {
-                return Pair(currentAvg, "Sensor (Avg, mA)")
-            } else {
-                return Pair(currentAvg / 1000, "Sensor (Avg, uA)")
-            }
-        }
-        return null
-    }
-
-    private fun estimateCurrentFromChargeCounter(chargeCounter: Int, currentTime: Long): Pair<Int, String>? {
-         var result: Pair<Int, String>? = null
-         if (previousChargeTime > 0 && chargeCounter > 0 && currentTime > previousChargeTime) {
-             val deltaCharge = chargeCounter - previousChargeCounter // microAmpere-hours
-             val deltaTime = currentTime - previousChargeTime // milliseconds
-             val hours = deltaTime / 3600000.0
-
-             // If the change is significant enough to calculate speed
-             if (hours > 0 && abs(deltaCharge) > 0) {
-                 val calculatedUa = deltaCharge / hours
-                 result = Pair((calculatedUa / 1000).toInt(), "Est. (Charge)")
-             }
-         }
-
-         if (previousChargeTime == 0L || currentTime - previousChargeTime > 5000) { // Update reference every 5s
-             previousChargeTime = currentTime
-             previousChargeCounter = chargeCounter
-         }
-         return result
-    }
-
-    private fun estimateCurrentFromEnergyCounter(energyCounter: Long, currentTime: Long, voltage: Double): Pair<Int, String>? {
-         var result: Pair<Int, String>? = null
-         if (previousEnergyTime > 0 && energyCounter > 0 && currentTime > previousEnergyTime) {
-             val deltaEnergy = energyCounter - previousEnergyCounter // nanowatt-hours
-             val deltaTime = currentTime - previousEnergyTime
-             val hours = deltaTime / 3600000.0
-
-             if (hours > 0 && abs(deltaEnergy) > 0 && voltage > 0) {
-                 val powerNw = deltaEnergy / hours // nanowatts
-                 val powerMw = powerNw / 1_000_000 // milliwatts
-                 // P = V * I  => I = P / V
-                 // I(mA) = P(mW) / V(V)
-                 val currentMa = (powerMw / voltage).toInt()
-                 result = Pair(currentMa, "Est. (Energy)")
-             }
-         }
-
-         if (previousEnergyTime == 0L || currentTime - previousEnergyTime > 5000) {
-             previousEnergyTime = currentTime
-             previousEnergyCounter = energyCounter
-         }
-         return result
-    }
-
-    private fun estimateCurrentFromPercentage(level: Int, scale: Int, currentTime: Long): Pair<Int, String>? {
-        // Use 4000 mAh as assumed capacity
-        val assumedCapacity = 4000
-        val currentPct = if (scale > 0) level * 100 / scale else 0
-        var result: Pair<Int, String>? = null
-
-        if (previousPctTime > 0 && previousPctLevel != -1 && currentPct != previousPctLevel && currentTime > previousPctTime) {
-             val deltaPct = currentPct - previousPctLevel
-             val deltaTime = currentTime - previousPctTime
-             val hours = deltaTime / 3600000.0 // Convert ms to hours
-
-             val deltaCapacity = (deltaPct / 100.0) * assumedCapacity // mAh
-
-             val currentMa = (deltaCapacity / hours).toInt()
-             result = Pair(currentMa, "Est. (Percent)")
-        }
-
-        // Only update reference if percentage changes (or first run)
-        if (previousPctLevel == -1 || currentPct != previousPctLevel) {
-            previousPctTime = currentTime
-            previousPctLevel = currentPct
-        }
-        return result
     }
 }
