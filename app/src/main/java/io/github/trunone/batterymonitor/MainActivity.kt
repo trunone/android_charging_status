@@ -1,4 +1,4 @@
-package com.example.batterymonitor
+package io.github.trunone.batterymonitor
 
 import android.content.BroadcastReceiver
 import android.content.Context

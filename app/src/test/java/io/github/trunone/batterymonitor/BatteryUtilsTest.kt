@@ -1,4 +1,4 @@
-package com.example.batterymonitor
+package io.github.trunone.batterymonitor
 
 import android.os.BatteryManager
 import org.junit.Assert.assertEquals

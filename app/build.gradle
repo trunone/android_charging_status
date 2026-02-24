@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'com.example.batterymonitor'
+    namespace 'io.github.trunone.batterymonitor'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.example.batterymonitor"
+        applicationId "io.github.trunone.batterymonitor"
         minSdk 24
         targetSdk 34
         versionCode 1
