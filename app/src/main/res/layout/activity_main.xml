@@ -3,8 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="?attr/colorSurface">
+    android:layout_height="match_parent">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
@@ -52,7 +51,7 @@
                         android:id="@+id/label_main_metric"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Charging Current"
+                        android:text="@string/label_charging_current"
                         android:textAppearance="?attr/textAppearanceLabelLarge"
                         android:textColor="?attr/colorOnPrimaryContainer" />
 
@@ -60,7 +59,7 @@
                         android:id="@+id/text_current"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="0 mA"
+                        android:text="@string/label_zero_ma"
                         android:textAppearance="?attr/textAppearanceDisplayMedium"
                         android:textColor="?attr/colorOnPrimaryContainer"
                         android:textStyle="bold"
@@ -70,7 +69,7 @@
                         android:id="@+id/text_status"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Not Charging"
+                        android:text="@string/label_not_charging"
                         android:textAppearance="?attr/textAppearanceTitleMedium"
                         android:textColor="?attr/colorOnPrimaryContainer"
                         android:layout_marginTop="4dp" />
@@ -103,13 +102,13 @@
                         android:orientation="vertical"
                         android:padding="16dp">
                         <TextView
-                            android:text="Level"
+                            android:text="@string/label_level"
                             android:textAppearance="?attr/textAppearanceLabelMedium"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
                         <TextView
                             android:id="@+id/text_level"
-                            android:text="--%"
+                            android:text="@string/label_default_level"
                             android:textAppearance="?attr/textAppearanceHeadlineSmall"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -132,13 +131,13 @@
                         android:orientation="vertical"
                         android:padding="16dp">
                         <TextView
-                            android:text="Voltage"
+                            android:text="@string/label_voltage"
                             android:textAppearance="?attr/textAppearanceLabelMedium"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
                         <TextView
                             android:id="@+id/text_voltage"
-                            android:text="-- V"
+                            android:text="@string/label_default_voltage"
                             android:textAppearance="?attr/textAppearanceHeadlineSmall"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -161,13 +160,13 @@
                         android:orientation="vertical"
                         android:padding="16dp">
                         <TextView
-                            android:text="Temperature"
+                            android:text="@string/label_temperature"
                             android:textAppearance="?attr/textAppearanceLabelMedium"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
                         <TextView
                             android:id="@+id/text_temp"
-                            android:text="-- °C"
+                            android:text="@string/label_default_temp"
                             android:textAppearance="?attr/textAppearanceHeadlineSmall"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -190,13 +189,13 @@
                         android:orientation="vertical"
                         android:padding="16dp">
                         <TextView
-                            android:text="Technology"
+                            android:text="@string/label_technology"
                             android:textAppearance="?attr/textAppearanceLabelMedium"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
                         <TextView
                             android:id="@+id/text_tech"
-                            android:text="Li-ion"
+                            android:text="@string/label_default_tech"
                             android:textAppearance="?attr/textAppearanceHeadlineSmall"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -219,13 +218,13 @@
                         android:orientation="vertical"
                         android:padding="16dp">
                         <TextView
-                            android:text="Capacity"
+                            android:text="@string/label_capacity"
                             android:textAppearance="?attr/textAppearanceLabelMedium"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
                         <TextView
                             android:id="@+id/text_capacity"
-                            android:text="-- mAh"
+                            android:text="@string/label_default_capacity"
                             android:textAppearance="?attr/textAppearanceHeadlineSmall"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -248,13 +247,13 @@
                         android:orientation="vertical"
                         android:padding="16dp">
                         <TextView
-                            android:text="Source"
+                            android:text="@string/label_source"
                             android:textAppearance="?attr/textAppearanceLabelMedium"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
                         <TextView
                             android:id="@+id/text_source"
-                            android:text="Battery"
+                            android:text="@string/label_default_source"
                             android:textAppearance="?attr/textAppearanceHeadlineSmall"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -273,7 +272,7 @@
                 android:fontFamily="monospace"
                 android:layout_marginTop="24dp"
                 android:textColor="?attr/colorOutline"
-                android:text="Debug Info"
+                android:text="@string/debug_info"
                 android:visibility="gone" />
 
         </LinearLayout>

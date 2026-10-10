@@ -1,14 +1,35 @@
 <resources>
     <string name="app_name">Battery Monitor</string>
-    <string name="status">Charging Status: %1$s</string>
-    <string name="level">Battery Level: %1$d%%</string>
-    <string name="source">Power Source: %1$s</string>
-    <string name="tech">Technology: %1$s</string>
-    <string name="temp">Temperature: %1$.1f °C</string>
-    <string name="voltage">Voltage: %1$.2f V</string>
-    <string name="current">Current: %1$d mA</string>
-    <string name="capacity">Capacity: %1$d mAh</string>
-    <string name="charge_counter">Charge Counter: %1$d mAh</string>
+
+    <!-- UI Labels -->
+    <string name="label_charging_current">Charging Current</string>
+    <string name="label_charging_power">Charging Power</string>
+    <string name="label_not_charging">Not Charging</string>
+    <string name="label_zero_ma">0 mA</string>
+    <string name="label_level">Level</string>
+    <string name="label_default_level">--%</string>
+    <string name="label_voltage">Voltage</string>
+    <string name="label_default_voltage">-- V</string>
+    <string name="label_temperature">Temperature</string>
+    <string name="label_default_temp">-- °C</string>
+    <string name="label_technology">Technology</string>
+    <string name="label_default_tech">Li-ion</string>
+    <string name="label_capacity">Capacity</string>
+    <string name="label_default_capacity">-- mAh</string>
+    <string name="label_source">Source</string>
+    <string name="label_default_source">Battery</string>
+    <string name="debug_info">Debug Info</string>
+    <string name="action_toggle_debug">Toggle Debug Info</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- Formatted Strings -->
+    <string name="current_ma_format">%1$d mA</string>
+    <string name="power_w_format">%1$.2f W</string>
+    <string name="capacity_mah_format">%1$d mAh</string>
+    <string name="unknown">Unknown</string>
+    <string name="temp_celsius_format">%1$.1f °C</string>
+    <string name="voltage_format">%1$.2f V</string>
+    <string name="level_percent_format">%1$.0f%%</string>
 
     <!-- Theme Strings -->
     <string name="action_theme">Theme</string>

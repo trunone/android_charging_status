@@ -15,8 +15,6 @@ import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
-import java.util.Locale
-import kotlin.math.abs
 
 class MainActivity : AppCompatActivity() {
 
@@ -103,7 +101,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateMainMetricLabel() {
-        labelMainMetric.text = if (isPowerMode) "Charging Power" else "Charging Current"
+        labelMainMetric.setText(if (isPowerMode) R.string.label_charging_power else R.string.label_charging_current)
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -157,7 +155,7 @@ class MainActivity : AppCompatActivity() {
                 updateLiveValues()
                 dialog.dismiss()
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 
@@ -192,7 +190,7 @@ class MainActivity : AppCompatActivity() {
                 AppCompatDelegate.setDefaultNightMode(selectedTheme)
                 dialog.dismiss()
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 
@@ -227,7 +225,7 @@ class MainActivity : AppCompatActivity() {
         val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
         val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
         val batteryPct = if (scale > 0) level * 100 / scale.toFloat() else 0f
-        textLevel.text = String.format(Locale.getDefault(), "%.0f%%", batteryPct)
+        textLevel.text = getString(R.string.level_percent_format, batteryPct)
 
         val chargePlug = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1)
         val sourceString = BatteryUtils.getPluggedString(chargePlug)
@@ -237,10 +235,10 @@ class MainActivity : AppCompatActivity() {
         textTech.text = technology
 
         val temperature = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) / 10.0
-        textTemp.text = String.format(Locale.getDefault(), "%.1f °C", temperature)
+        textTemp.text = getString(R.string.temp_celsius_format, temperature)
 
         val voltage = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0) / 1000.0
-        textVoltage.text = String.format(Locale.getDefault(), "%.2f V", voltage)
+        textVoltage.text = getString(R.string.voltage_format, voltage)
 
         // --- Current/Speed Estimation Logic ---
         val batteryManager = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
@@ -258,7 +256,7 @@ class MainActivity : AppCompatActivity() {
         val rawValue = if (isDataSourceNow) currentNow else currentAvg
         val label = if (isDataSourceNow) "Now" else "Avg"
 
-        val result = estimateCurrent(rawValue, label)
+        val result = BatteryUtils.estimateCurrent(rawValue, label)
 
         if (result != null) {
             estimatedCurrentMa = result.first
@@ -271,21 +269,21 @@ class MainActivity : AppCompatActivity() {
             // Power (mW) = mA * V
             // Power (W) = (mA * V) / 1000
             val powerWatts = (estimatedCurrentMa * voltage) / 1000.0
-            textCurrent.text = String.format(Locale.getDefault(), "%.2f W", powerWatts)
+            textCurrent.text = getString(R.string.power_w_format, powerWatts)
         } else {
             textCurrent.text = if (estimationMethod.isNotEmpty()) {
-                "$estimatedCurrentMa mA"
+                getString(R.string.current_ma_format, estimatedCurrentMa)
             } else {
-                "0 mA"
+                getString(R.string.current_ma_format, 0)
             }
         }
 
         // Capacity
         val capacityMah = chargeCounter / 1000
         if (capacityMah > 0) {
-             textCapacity.text = "$capacityMah mAh"
+            textCapacity.text = getString(R.string.capacity_mah_format, capacityMah)
         } else {
-             textCapacity.text = "Unknown"
+            textCapacity.setText(R.string.unknown)
         }
 
         // Debug Info
@@ -298,17 +296,5 @@ class MainActivity : AppCompatActivity() {
         debugInfo.append("Engy: $energyCounter nWh\n")
         debugInfo.append("Lvl: $level / $scale")
         textDebug.text = debugInfo.toString()
-    }
-
-    private fun estimateCurrent(rawValue: Int, sourceLabel: String): Pair<Int, String>? {
-        if (rawValue != 0 && rawValue != Int.MIN_VALUE) {
-            // Heuristic: If value is small (< 10000), assume it's already in mA
-            if (abs(rawValue) < 10000) {
-                return Pair(rawValue, "Sensor ($sourceLabel, mA)")
-            } else {
-                return Pair(rawValue / 1000, "Sensor ($sourceLabel, uA)")
-            }
-        }
-        return null
     }
 }
