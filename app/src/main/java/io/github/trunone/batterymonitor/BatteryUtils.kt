@@ -1,6 +1,7 @@
 package io.github.trunone.batterymonitor
 
 import android.os.BatteryManager
+import kotlin.math.abs
 
 object BatteryUtils {
     fun getStatusString(status: Int): String {
@@ -20,5 +21,17 @@ object BatteryUtils {
             BatteryManager.BATTERY_PLUGGED_WIRELESS -> "Wireless"
             else -> "Battery"
         }
+    }
+
+    fun estimateCurrent(rawValue: Int, sourceLabel: String): Pair<Int, String>? {
+        if (rawValue != 0 && rawValue != Int.MIN_VALUE) {
+            // Heuristic: If value is small (< 10000), assume it's already in mA
+            if (abs(rawValue) < 10000) {
+                return Pair(rawValue, "Sensor ($sourceLabel, mA)")
+            } else {
+                return Pair(rawValue / 1000, "Sensor ($sourceLabel, uA)")
+            }
+        }
+        return null
     }
 }
